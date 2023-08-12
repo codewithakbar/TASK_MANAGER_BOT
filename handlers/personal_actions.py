@@ -26,7 +26,7 @@ from sqlalchemy.orm import sessionmaker
 
 from bot import engine
 from utility.db import Department, Personnel, Task
-from keyboards.inline import start_kayboard
+from keyboards.default import cmd_start
 
 Session = sessionmaker(bind=engine)
 session = Session()
@@ -42,7 +42,7 @@ async def cmd_ping_bot(message: types.Message):
 
 @dp.message_handler(Command("start"))
 async def start(message: types.Message):
-    await message.answer("Привет! Я Task Manager Bot. Чем я могу вам помочь?", reply_markup=start_kayboard)
+    await message.answer(f"<b>Task Manager Bot:</b> \nFoydalanuvchi: <i>{message.from_user.full_name}</i>\nRoli: Moderator", reply_markup=cmd_start())
 
 
 
