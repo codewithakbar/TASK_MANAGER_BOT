@@ -16,6 +16,19 @@ class IsOwnerFilter(BoundFilter):
         return message.from_user.id in config.BOT_OWNERS
 
 
+class IsUserFilter(BoundFilter):
+    """
+    Custom filter "is_user".
+    """
+    key = "is_user"
+
+    def __init__(self, is_user):
+        self.is_user = is_user
+
+    async def check(self, message: types.Message):
+        return message.from_user.id not in config.BOT_OWNERS
+
+
 class IsAdminFilter(BoundFilter):
     """
     Filter that checks for admin rights existence

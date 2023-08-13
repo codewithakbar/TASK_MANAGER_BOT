@@ -36,3 +36,4 @@ pillow
 requests
 lxml
 sqlalchemy
+alembic

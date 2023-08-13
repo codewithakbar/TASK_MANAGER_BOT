@@ -23,13 +23,41 @@ from dispatcher import dp, bot
 from data.config import ADMINS, CHANNELS
 
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm.exc import NoResultFound
 
-from bot import engine
-from utility.db import Department, Personnel, Task
-from keyboards.default import cmd_start
 
-Session = sessionmaker(bind=engine)
-session = Session()
+from bot import Session, engine
+from keyboards.default.admin import BACK_TO_MAIN, add_personal, back_to_main
+from keyboards.default.profil import profile_murkups
+from utility.db import Department, Personal, Task, User
+from keyboards.default import cmd_start, admin_cmd_start
+from keyboards.default.commands import PERSONAL, PROFIL
+
+from config import BOT_OWNERS
+
+
+
+
+@dp.message_handler(text=f"{PROFIL}")
+async def user_profile(message: types.Message):
+    session = Session()
+    user = session.query(User).filter_by(chat_id=message.chat.id).first()
+
+    if user:
+        bio = "Topilmadi" if user.bio is None else user.bio
+        phone = "Topilmadi" if user.phone is None else user.phone
+        lavozim = "Topilmadi" if user.lavozim is None else user.lavozim
+        chat_id = "Topilmadi" if user.chat_id is None else user.chat_id
+        response = f"Profil:\nIsmi: {user.first_name}\nFamiliya: {user.last_name}\nFoydalanuvchi xaqida: {bio}\nTelefon raqam: {phone}\nLavozim: {lavozim}\nChat ID: {chat_id}"
+
+        await message.answer(response, reply_markup=profile_murkups())
+    else:
+        await message.answer("Nimadir xato ketti!")
+
+
+
+
+
 
 
 # Personal actions goes here (bot direct messages)
@@ -39,185 +67,91 @@ async def cmd_ping_bot(message: types.Message):
     await message.reply("<b>👊 Up & Running!</b>\n\n")
 
 
+@dp.message_handler(text=f"{PERSONAL}")
+async def xodimlar(message: types.Message):
+    session = Session()
+    users = session.query(User).all()
+    msg_chat_id = message.chat.id
+
+    if not users:
+        await message.answer("Xodimlar Topilmadi", reply_markup=add_personal())
+        return
+    
+    keyboard = types.InlineKeyboardMarkup()
+
+    for user in users:
+        button_text = f"{user.first_name} {user.last_name}"
+        callback_data = f"add_personal:{user.id}"
+        keyboard.add(types.InlineKeyboardButton(text=button_text, callback_data=callback_data))
+    
+    if message.chat.id in BOT_OWNERS:
+        await message.reply("Botdagi fo'ydalanuvchidal: \n\n", reply_markup=back_to_main())
+        await message.answer("Xodimlar safiga qoshish uchun Ism ustiga bo'sing", reply_markup=keyboard)
+    else:
+        await message.reply("Xodimlar: \n\n", reply_markup=keyboard)
+
+
+@dp.callback_query_handler(lambda query: query.data.startswith("add_personal:"))
+async def add_personal_user(callback_query: types.CallbackQuery):
+    user_id = int(callback_query.data.split(":")[1])
+    
+    session = Session()
+
+    user = session.query(User).get(user_id)
+    
+    if user:
+        await callback_query.answer("Qoshilgan!!!")
+    else:
+        new_personal = Personal(
+            user_id=user_id,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            bio=user.bio,
+            lavozim=user.lavozim,
+            phone=user.phone   
+        )
+        session.add(new_personal)
+        session.commit()
+
+        await callback_query.answer("User added to personal_user model")
+
+
+
 
 @dp.message_handler(Command("start"))
+@dp.message_handler(text=f"{BACK_TO_MAIN}")
 async def start(message: types.Message):
-    await message.answer(f"<b>Task Manager Bot:</b> \nFoydalanuvchi: <i>{message.from_user.full_name}</i>\nRoli: Moderator", reply_markup=cmd_start())
+    first_name = "" if message.from_user.first_name is None else message.from_user.first_name
+    last_name = "" if message.from_user.last_name is None else message.from_user.last_name
+    username = "" if message.from_user.username is None else message.from_user.username
+
+    session = Session()
+
+    user = session.query(User).filter_by(chat_id=message.chat.id).first()
+    msg_chat_id = message.chat.id
+
+    if user:
+        await message.answer("Siz allaqachon botda ro'yxatdan o'tgansiz!")
+    else:
+        new_user = User(username=username,
+                        first_name=first_name,
+                        last_name=last_name,
+                        chat_id=msg_chat_id)
+
+        session.add(new_user)
+        session.commit()
+
+        await message.answer("Botga xush kelibsiz!")
+
+    member = await message.bot.get_chat_member(message.chat.id, message.from_user.id)
+
+    role = "Raxbar" if member.user.id in BOT_OWNERS else "Foydalanuvchi"
+    if msg_chat_id in BOT_OWNERS:
+        await message.answer(f"<b>Task Manager Bot:</b> \n<b>Foydalanuvchi:</b> <i>{user.first_name} {user.last_name}</i>\n<b>Roli</b>: <i>{role}</i>", reply_markup=admin_cmd_start(msg_chat_id))
+    else:
+        await message.answer(f"<b>Task Manager Bot:</b> \n<b>Foydalanuvchi:</b> <i>{user.first_name} {user.last_name}</i>\n<b>Roli</b>: <i>{role}</i>", reply_markup=cmd_start(msg_chat_id))
 
 
 
 
-@dp.message_handler(commands=['create_task'])
-async def create_task(message: types.Message):
-    departments = session.query(Department).all()
-    if not departments:
-        await message.answer("Сначала создайте хотя бы один отдел.")
-        return
-
-    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    for department in departments:
-        keyboard.add(department.name)
-
-    await message.answer("Выберите отдел:", reply_markup=keyboard)
-    await dp.register_next_step_handler(message, process_create_task)
-
-async def process_create_task(message: types.Message):
-    selected_department_name = message.text
-    department = session.query(Department).filter_by(name=selected_department_name).first()
-    if not department:
-        await message.answer("Выбранный отдел не существует.")
-        return
-
-    await message.answer("Введите текст задачи:")
-    await dp.register_next_step_handler(message, lambda msg: save_task(msg, department))
-
-def save_task(message: types.Message, department: Department):
-    task_text = message.text
-    new_task = Task(text=task_text, department_id=department.id)
-    session.add(new_task)
-    session.commit()
-    bot.send_message(message.chat.id, f"Задача '{task_text}' добавлена в отдел '{department.name}'.")
-
-
-# @dp.message_handler(commands=["start"])
-# async def start_command(message: types.Message):
-
-#     await message.answer(f"User: {message.from_user.full_name}")
-
-
-# @dp.message_handler(commands=['create_department'])
-# async def create_department(message: types.Message):
-#     await message.answer("Введите название нового отдела:")
-#     await bot.register_next_step_handler(message, process_create_department)
-
-
-# async def process_create_department(message: types.Message):
-#     department_name = message.text
-#     new_department = Department(name=department_name)
-#     session.add(new_department)
-#     session.commit()
-#     await message.answer(f"Отдел '{department_name}' создан!")
-
-
-# @dp.message_handler(commands=['create_task'])
-# async def create_task(message: types.Message):
-#     departments = session.query(Department).all()
-#     if not departments:
-#         await message.answer("Сначала создайте хотя бы один отдел.")
-#         return
-
-#     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-#     for department in departments:
-#         keyboard.add(department.name)
-
-#     await message.answer("Выберите отдел:", reply_markup=keyboard)
-#     await bot.register_next_step_handler(message, process_create_task)
-
-
-# async def process_create_task(message: types.Message):
-#     selected_department_name = message.text
-#     department = session.query(Department).filter_by(name=selected_department_name).first()
-#     if not department:
-#         await message.answer("Выбранный отдел не существует.")
-#         return
-
-#     await message.answer("Введите текст задачи:")
-#     await bot.register_next_step_handler(message, lambda msg: save_due_date(msg, department))
-
-
-# @dp.message_handler(lambda message: message.chat.id in session and "text" in session[message.chat.id])
-# async def save_due_date(message: types.Message):
-#     try:
-#         due_date = datetime.datetime.strptime(message.text, '%Y-%m-%d %H:%M')
-#     except ValueError:
-#         await message.answer("Неверный формат даты и времени. Пожалуйста, введите в формате YYYY-MM-DD HH:MM:")
-#         return
-
-#     task_data = session[message.chat.id]
-#     department_id = task_data["department_id"]
-#     department = session.query(Department).get(department_id)  # Получаем объект отдела по ID
-#     new_task = Task(text=task_data["text"], department_id=department_id, due_date=due_date)
-#     session.add(new_task)
-#     session.commit()
-
-#     del session[message.chat.id]
-
-#     await message.answer(f"Задача '{new_task.text}' добавлена в отдел '{department.name}'. Дедлайн: {due_date}.")
-
-#     personnel_ids = [p.user_id for p in session.query(Personnel).all()]
-
-#     # Send the task to personnel
-#     for user_id in personnel_ids:
-#         try:
-#             await bot.send_message(user_id, f"Новая задача в отделе '{department.name}': {new_task.text}\nДедлайн: {due_date}")
-#         except exceptions.BotBlocked:
-#             logging.error(f"Target [ID:{user_id}]: blocked by user")
-#         except exceptions.ChatNotFound:
-#             logging.error(f"Target [ID:{user_id}]: invalid user ID")
-#         except exceptions.RetryAfter as e:
-#             logging.error(f"Target [ID:{user_id}]: Flood limit is exceeded. Sleep {e.timeout} seconds.")
-#             await asyncio.sleep(e.timeout)
-#         except exceptions.UserDeactivated:
-#             logging.error(f"Target [ID:{user_id}]: user is deactivated")
-
-
-
-# @dp.message_handler(lambda message: message.chat.id in session and "text" in session[message.chat.id])
-# async def save_due_date(message: types.Message):
-#     try:
-#         due_date = datetime.datetime.strptime(message.text, '%Y-%m-%d %H:%M')
-#     except ValueError:
-#         await message.answer("Неверный формат даты и времени. Пожалуйста, введите в формате YYYY-MM-DD HH:MM:")
-#         return
-
-#     task_data = session[message.chat.id]
-#     department_id = task_data["department_id"]
-#     department = session.query(Department).get(department_id)  # Получаем объект отдела по ID
-#     new_task = Task(text=task_data["text"], department_id=department_id, due_date=due_date)
-#     session.add(new_task)
-#     session.commit()
-
-#     del session[message.chat.id]
-
-#     await message.answer(f"Задача '{new_task.text}' добавлена в отдел '{department.name}'. Дедлайн: {due_date}.")
-
-#     personnel_ids = [p.user_id for p in session.query(Personnel).all()]
-
-#     # Send the task to personnel
-#     for user_id in personnel_ids:
-#         try:
-#             await bot.send_message(user_id, f"Новая задача в отделе '{department.name}': {new_task.text}\nДедлайн: {due_date}")
-#         except exceptions.BotBlocked:
-#             logging.error(f"Target [ID:{user_id}]: blocked by user")
-#         except exceptions.ChatNotFound:
-#             logging.error(f"Target [ID:{user_id}]: invalid user ID")
-#         except exceptions.RetryAfter as e:
-#             logging.error(f"Target [ID:{user_id}]: Flood limit is exceeded. Sleep {e.timeout} seconds.")
-#             await asyncio.sleep(e.timeout)
-#         except exceptions.UserDeactivated:
-#             logging.error(f"Target [ID:{user_id}]: user is deactivated")
-
-
-# @dp.message_handler(commands=['add_personnel'])
-# async def add_personnel(message: types.Message):
-#     await message.answer("Введите имя сотрудника:")
-#     await bot.register_next_step_handler(message, process_add_personnel_name)
-
-
-# async def process_add_personnel_name(message: types.Message):
-#     name = message.text
-#     await message.answer("Введите должность сотрудника:")
-#     session[message.chat.id] = {"name": name}
-
-# @dp.message_handler(lambda message: message.chat.id in session and "name" in session[message.chat.id])
-# async def process_add_personnel_position(message: types.Message):
-#     name = session[message.chat.id]["name"]
-#     position = message.text
-#     new_personnel = Personnel(user_id=message.from_user.id, name=name, position=position)
-#     session.add(new_personnel)
-#     session.commit()
-
-#     del session[message.chat.id]["name"]
-
-#     await message.answer(f"Сотрудник '{name}' добавлен в список персонала с должностью '{position}'.")
 
