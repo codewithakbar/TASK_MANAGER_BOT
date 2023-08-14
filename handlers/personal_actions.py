@@ -131,7 +131,7 @@ async def start(message: types.Message):
     msg_chat_id = message.chat.id
 
     if user:
-        await message.answer("Siz allaqachon botda ro'yxatdan o'tgansiz!")
+        await message.answer("Asosiy Menyu")
     else:
         new_user = User(username=username,
                         first_name=first_name,
@@ -141,7 +141,10 @@ async def start(message: types.Message):
         session.add(new_user)
         session.commit()
 
-        await message.answer("Botga xush kelibsiz!")
+    if msg_chat_id in BOT_OWNERS:
+        await message.answer("Admin xush kelibsiz!", reply_markup=admin_cmd_start(msg_chat_id))
+    else:
+        await message.answer("Botga xush kelibsiz!", reply_markup=cmd_start(msg_chat_id))
 
     member = await message.bot.get_chat_member(message.chat.id, message.from_user.id)
 

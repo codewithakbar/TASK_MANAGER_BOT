@@ -1,6 +1,7 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
 from config import BOT_OWNERS
+from keyboards.default.admin import BACK_TO_MAIN
 
 
 BACK_MESSAGE = '👈 ORQAGA'
@@ -49,3 +50,14 @@ def add_personal():
 
     markup = ReplyKeyboardMarkup(resize_keyboard=True, selective=True)
     markup.add(ADD_PERSONAL)
+
+
+def vazifa_yuklash_btn():
+
+    markup = ReplyKeyboardMarkup(resize_keyboard=True, selective=True)
+    markup.add(VAZIFA_YUKLASH)
+    markup.add(BACK_TO_MAIN)
+
+    return markup
+
+    

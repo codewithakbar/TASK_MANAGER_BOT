@@ -20,7 +20,7 @@ from utility.db import Department, Personal, Task, User
 from keyboards.default import cmd_start, add_personal
 
 from config import BOT_OWNERS
-from keyboards.default.commands import ADMIN
+from keyboards.default.commands import ADMIN, VAZIFA_YUKLASH, vazifa_yuklash_btn
 from keyboards.default.admin import ADD_PERSONAL, USERS, DELETE_PERSONAL
 
 delete_user_callback = CallbackData("delete_user", "user_id")
@@ -35,7 +35,14 @@ class PersonalDataForm(StatesGroup):
 
 @dp.message_handler(is_owner=True, text=f"{ADMIN}")
 async def admin_panel(message: types.Message):
-    await message.reply("<b>👊 Admin Panel!</b>\n\n", reply_markup=add_personal())
+    await message.reply("<b>Admin Panel!</b>\n\n", reply_markup=add_personal())
+
+
+
+@dp.message_handler(is_owner=True, text=f"{VAZIFA_YUKLASH}")
+async def vazifa_yuklash(message: types.Message):
+    await message.reply("<b>Vazifa Yuklash!</b>\n\n", reply_markup=vazifa_yuklash_btn())
+
 
 
 """             XODIMLARNI OCHIRISH                 """
