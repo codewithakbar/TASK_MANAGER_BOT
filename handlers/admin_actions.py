@@ -20,8 +20,8 @@ from utility.db import Department, Personal, Task, User
 from keyboards.default import cmd_start, add_personal
 
 from config import BOT_OWNERS
-from keyboards.default.commands import ADMIN, VAZIFA_YUKLASH, vazifa_yuklash_btn
-from keyboards.default.admin import ADD_PERSONAL, USERS, DELETE_PERSONAL
+from keyboards.default.commands import ADMIN, BOLIM, BOLIM_YARATISH, VAZIFA_YUKLASH, bolim_main, vazifa_yuklash_btn
+from keyboards.default.admin import ADD_PERSONAL, USERS, DELETE_PERSONAL, back_to_main
 
 delete_user_callback = CallbackData("delete_user", "user_id")
 
@@ -31,6 +31,10 @@ class PersonalDataForm(StatesGroup):
     waiting_for_username = State()
     waiting_for_first_name = State()
     waiting_for_last_name = State()
+
+
+class DepartamentDataForm(StatesGroup):
+    waiting_for_name = State()
 
 
 @dp.message_handler(is_owner=True, text=f"{ADMIN}")
@@ -154,3 +158,58 @@ async def process_last_name(message: types.Message, state: FSMContext):
 
     await message.answer("Xodim ma'lumotlari muvaffaqiyatli qo'shildi")
     await state.finish()
+
+
+
+
+
+# Bo'limlar 
+
+@dp.message_handler(is_owner=True, text=f"{BOLIM}")
+async def bolim_asosiy(message: types.Message):
+
+    session = Session()
+    users = session.query(Department).all()
+
+    if not users:
+        await message.answer("There are no Departament registered.")
+        return
+
+    keyboard = types.InlineKeyboardMarkup()
+
+    for user in users:
+        button_text = f"{user.name}"
+        keyboard.add(types.InlineKeyboardButton(text=button_text, callback_data=f"view_user:{user.id}"))
+
+
+    await message.answer("Barcha Bo'limlar...", reply_markup=keyboard)
+    await message.answer("ok...", reply_markup=bolim_main())
+
+
+
+@dp.message_handler(is_owner=True, text=f"{BOLIM_YARATISH}")
+async def add_bolim_asosiy_step1(message: types.Message):
+    await message.answer("Iltimos, Bo'lim nomini kiriting (yoki to'xtatish uchun /cancel ni bo'sing):")
+    await DepartamentDataForm.waiting_for_name.set()
+
+
+
+@dp.message_handler(state=DepartamentDataForm.waiting_for_name)
+async def add_bolim_asosiy_step2(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['department_name'] = message.text
+    
+
+    department_name = data['department_name']
+    
+    new_department = Department(name=department_name)
+
+    session = Session()
+    session.add(new_department)
+    session.commit()
+
+    await state.finish()
+    await message.answer(f"Bo'lim '{department_name}' muvaffaqiyatli yaratildi!", reply_markup=back_to_main())
+
+
+

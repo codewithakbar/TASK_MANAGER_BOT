@@ -13,12 +13,13 @@ VAZIFA_YUKLASH = "VAZIFA YUKLASH"
 VAZIFALARIM = "VAZIFALARIM"
 PERSONAL = 'XODIMLAR'
 ADD_PERSONAL = 'XODIMLAR QO\'SHISH'
-BOLIM = "BO'LIM YARATISH"
 ADMIN = "Admin Panel"
 PROFIL = "Profil"
 
-
-
+# Bo'lim [Departament]
+BOLIM = "BO'LIMLAR"
+BOLIM_YARATISH = "Bo'lim yaratish"
+BOLIM_OCHIRISH = "Bo'limni ochirish"
 
 def cmd_start(chat_id=None):
 
@@ -61,3 +62,13 @@ def vazifa_yuklash_btn():
     return markup
 
     
+
+def bolim_main():
+
+    markup = ReplyKeyboardMarkup(resize_keyboard=True, selective=True)
+    markup.add(BOLIM_YARATISH, BOLIM_OCHIRISH)
+    markup.add(BACK_TO_MAIN)
+
+    return markup
+
+
