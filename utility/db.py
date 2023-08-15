@@ -17,7 +17,7 @@ class User(Base):
     first_name = Column(String)
     last_name = Column(String)
     bio = Column(String)
-    lavozim = Column(String)  # Add this line
+    lavozim = Column(String)
     phone = Column(String)
 
     personal = relationship("Personal", back_populates="user")
@@ -31,6 +31,7 @@ class Personal(Base):
 
     id = Column(Integer, Sequence('personal_id_seq'), primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id'))
+    user_chat_id = Column(Integer, ForeignKey('users.chat_id'))
     first_name = Column(String)
     last_name = Column(String)
     bio = Column(String)
@@ -57,6 +58,7 @@ class Department(Base):
     __tablename__ = 'departments'
     id = Column(Integer, primary_key=True)
     name = Column(String)
+    users_chat_id = Column(Integer, ForeignKey('personal.user_chat_id'))
 
 
 class Task(Base):

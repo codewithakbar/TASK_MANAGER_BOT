@@ -103,12 +103,8 @@ async def add_personal_user(callback_query: types.CallbackQuery):
         await callback_query.answer("Qoshilgan!!!")
     else:
         new_personal = Personal(
-            user_id=user_id,
-            first_name=user.first_name,
-            last_name=user.last_name,
-            bio=user.bio,
-            lavozim=user.lavozim,
-            phone=user.phone   
+            user_id=user.id,
+            user_chat_id=user.chat_id
         )
         session.add(new_personal)
         session.commit()
