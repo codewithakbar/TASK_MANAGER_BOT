@@ -9,12 +9,20 @@ CONFIRM_MESSAGE = '✅ TASTIQLASH'
 ALL_RIGHT_MESSAGE = '✅ XAMMASI TO\'G\'RI'
 CANCEL_MSG = '🚫 BEKOR QILISH'
 DEPARTAMENT = 'RAXBARIYAT'
-VAZIFA_YUKLASH = "VAZIFA YUKLASH"
-VAZIFALARIM = "VAZIFALARIM"
 PERSONAL = 'XODIMLAR'
 ADD_PERSONAL = 'XODIMLAR QO\'SHISH'
 ADMIN = "Admin Panel"
 PROFIL = "Profil"
+
+
+# Vazifalar 
+VAZIFALARIM = "VAZIFALARIM"
+VAZIFA_YUKLASH = "VAZIFALAR" # Admins
+ADD_VAZIFA = "VAZIFA YUKLASH"
+BERILGARN_VAZIFALAR = "BERILGAN VAZIFALAR"
+YAKUNLANGAN_VAZIFALAR = "YAKUNLANGAN VAZIFALAR"
+BARCHA_VAZIFALAR = "BARCHA VAZIFALAR"
+
 
 # Bo'lim [Departament]
 BOLIM = "BO'LIMLAR"
@@ -53,10 +61,14 @@ def add_personal():
     markup.add(ADD_PERSONAL)
 
 
+
+
 def vazifa_yuklash_btn():
 
     markup = ReplyKeyboardMarkup(resize_keyboard=True, selective=True)
-    markup.add(VAZIFA_YUKLASH)
+    markup.add(ADD_VAZIFA, BARCHA_VAZIFALAR)
+    markup.add(YAKUNLANGAN_VAZIFALAR)
+    markup.add(BERILGARN_VAZIFALAR)
     markup.add(BACK_TO_MAIN)
 
     return markup

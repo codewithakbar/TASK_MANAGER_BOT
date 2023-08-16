@@ -31,15 +31,33 @@ class Personal(Base):
 
     id = Column(Integer, Sequence('personal_id_seq'), primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id'))
-    user_chat_id = Column(Integer, ForeignKey('users.chat_id'))
     first_name = Column(String)
     last_name = Column(String)
     bio = Column(String)
-    lavozim = Column(String)  # Add this line
+    lavozim = Column(String)
     phone = Column(String)
 
 
     user = relationship("User", back_populates="personal")
+
+
+
+
+class Department(Base):
+    __tablename__ = 'departments'
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+
+
+
+
+class Task(Base):
+    __tablename__ = 'tasks'
+    id = Column(Integer, primary_key=True)
+    text = Column(String)
+    department_id = Column(Integer, ForeignKey('departments.id'))
+    due_date = Column(DateTime)
+
 
 
 # class UserProfile(Base):
@@ -54,20 +72,15 @@ class Personal(Base):
 #     user = relationship("User", back_populates="profile")
 
 
-class Department(Base):
-    __tablename__ = 'departments'
-    id = Column(Integer, primary_key=True)
-    name = Column(String)
-    users_chat_id = Column(Integer, ForeignKey('personal.user_chat_id'))
 
+# class UserProfile(Base):
+#     __tablename__ = 'user_profiles'
 
-class Task(Base):
-    __tablename__ = 'tasks'
-    id = Column(Integer, primary_key=True)
-    text = Column(String)
-    department_id = Column(Integer, ForeignKey('departments.id'))
-    due_date = Column(DateTime)
+#     id = Column(Integer, primary_key=True)
+#     user_id = Column(Integer, ForeignKey('users.id'), unique=True)
+#     bio = Column(String)
+#     # lavozim
+#     position = Column(String)
 
-
-
+#     user = relationship("User", back_populates="profile")
 
