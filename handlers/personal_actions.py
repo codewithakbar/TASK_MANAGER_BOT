@@ -8,6 +8,8 @@ import logging
 from PIL import Image, ImageDraw
 import requests
 from io import BytesIO
+from datetime import datetime
+
 
 from aiogram import types
 from aiogram.dispatcher.filters import Text
@@ -45,10 +47,14 @@ async def user_profile(message: types.Message):
 
     if user:
         bio = "Topilmadi" if user.bio is None else user.bio
+        username = "Topilmadi" if user.username is None else user.username
         phone = "Topilmadi" if user.phone is None else user.phone
         lavozim = "Topilmadi" if user.lavozim is None else user.lavozim
         chat_id = "Topilmadi" if user.chat_id is None else user.chat_id
-        response = f"Profil:\nIsmi: {user.first_name}\nFamiliya: {user.last_name}\nFoydalanuvchi xaqida: {bio}\nTelefon raqam: {phone}\nLavozim: {lavozim}\nChat ID: {chat_id}"
+        created_at = "Topilmadi" if user.created_at is None else user.created_at
+        created_at = created_at.strftime("%d.%m.%Y %H:%M:%S")
+
+        response = f"<b>Akkaunt</b>:\n<i>Sizning profilingizdagi barcha kerakli ma'lumotlar</i>\n\n<b>👁‍🗨ID:</b> <code>{chat_id}</code>\n<b>👁‍🗨Username:</b> @{username}\n👁‍🗨<b>Telefon:</b> <code>{phone}</code>\n👁‍🗨<b>Qoshilgan sana:</b> <code>{created_at}</code>\n\n<b>Ismi:</b> <code>{user.first_name}</code>\n<b>Familiya:</b> <code>{user.last_name}</code>\n<b>Foydalanuvchi xaqida:</b> <code>{bio}</code>\n<b>Lavozim:</b> <code>{lavozim}</code>\n\n👨‍💻<b>Bot yaratuvchisi:</b>\n<b>└texnik yordam uchun</b>: @satipoff"
 
         await message.answer(response, reply_markup=profile_murkups())
     else:
@@ -142,13 +148,14 @@ async def start(message: types.Message):
     else:
         await message.answer("Botga xush kelibsiz!", reply_markup=cmd_start(msg_chat_id))
 
+    save_user = session.query(User).filter_by(chat_id=message.chat.id).first()
     member = await message.bot.get_chat_member(message.chat.id, message.from_user.id)
 
     role = "Raxbar" if member.user.id in BOT_OWNERS else "Foydalanuvchi"
     if msg_chat_id in BOT_OWNERS:
-        await message.answer(f"<b>Task Manager Bot:</b> \n<b>Foydalanuvchi:</b> <i>{user.first_name} {user.last_name}</i>\n<b>Roli</b>: <i>{role}</i>", reply_markup=admin_cmd_start(msg_chat_id))
+        await message.answer(f"<b>Task Manager Bot:</b> \n<b>Foydalanuvchi:</b> <i>{save_user.first_name} {save_user.last_name}</i>\n<b>Roli</b>: <i>{role}</i>", reply_markup=admin_cmd_start(msg_chat_id))
     else:
-        await message.answer(f"<b>Task Manager Bot:</b> \n<b>Foydalanuvchi:</b> <i>{user.first_name} {user.last_name}</i>\n<b>Roli</b>: <i>{role}</i>", reply_markup=cmd_start(msg_chat_id))
+        await message.answer(f"<b>Task Manager Bot:</b> \n<b>Foydalanuvchi:</b> <i>{save_user.first_name} {save_user.last_name}</i>\n<b>Roli</b>: <i>{role}</i>", reply_markup=cmd_start(msg_chat_id))
 
 
 

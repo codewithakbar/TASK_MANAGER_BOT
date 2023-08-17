@@ -21,7 +21,7 @@ from keyboards.default import cmd_start, add_personal
 
 from config import BOT_OWNERS
 from keyboards.default.commands import ADMIN, BOLIM, BOLIM_YARATISH, VAZIFA_YUKLASH, bolim_main, vazifa_yuklash_btn
-from keyboards.default.admin import ADD_PERSONAL, USERS, DELETE_PERSONAL, back_to_main
+from keyboards.default.admin import ADD_PERSONAL, USERS, DELETE_PERSONAL, USERS_DELETE, back_to_main
 
 delete_user_callback = CallbackData("delete_user", "user_id")
 
@@ -70,6 +70,25 @@ async def get_all_users_and_delete(message: types.Message):
     await message.answer("Xodimlarni birini o'chirish uchun xodim ismiga bo'sing!:", reply_markup=keyboard)
 
 
+@dp.message_handler(is_owner=True, text=f"{USERS_DELETE}")
+async def get_all_users_and_delete_p(message: types.Message):
+    session = Session()
+    users = session.query(User).all()
+
+    if not users:
+        await message.answer("There are no users registered.")
+        return
+
+    keyboard = types.InlineKeyboardMarkup()
+
+    for user in users:
+        button_text = f"{user.first_name} {user.last_name}"
+        keyboard.add(types.InlineKeyboardButton(text=button_text, callback_data=delete_user_callback.new(user_id=user.id)))
+
+    await message.answer("Foydalanuvchilardan birini o'chirish uchun xodim ismiga bo'sing!:", reply_markup=keyboard)
+
+
+
 @dp.callback_query_handler(delete_user_callback.filter())
 async def delete_user_callback_handler(query: types.CallbackQuery, callback_data: dict):
     user_id = int(callback_data["user_id"])
@@ -116,6 +135,8 @@ async def get_all_users(message: types.Message):
         keyboard.add(types.InlineKeyboardButton(text=button_text, callback_data=f"view_user:{user.id}"))
 
     await message.answer("Select a user to view:", reply_markup=keyboard)
+
+
 
 
 

@@ -1,4 +1,4 @@
-from sqlalchemy import DateTime, ForeignKey, create_engine, Column, Integer, String, Sequence
+from sqlalchemy import DateTime, ForeignKey, create_engine, Column, Integer, String, Sequence, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm import relationship
@@ -19,6 +19,7 @@ class User(Base):
     bio = Column(String)
     lavozim = Column(String)
     phone = Column(String)
+    created_at = Column(DateTime, default=func.now())
 
     personal = relationship("Personal", back_populates="user")
 
