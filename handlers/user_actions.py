@@ -6,7 +6,7 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from bot import Session
 from dispatcher import dp, bot
 from config import BOT_OWNERS
-from keyboards.default.commands import cmd_start
+from keyboards.default.commands import admin_cmd_start, cmd_start
 
 from keyboards.default.profil import NAME, FAMILIYA, PHONE, LAVOZIM
 from utility.db import User
@@ -57,7 +57,10 @@ async def update_first_name(message: types.Message, state: FSMContext):
     if user:
         user.first_name = new_first_name
         session.commit()
-        await message.answer("Ismingiz Yangiliandi", reply_markup=cmd_start(msg_chat_id))
+        if msg_chat_id in BOT_OWNERS:
+            await message.answer("Ismingiz Yangiliandi", reply_markup=admin_cmd_start(msg_chat_id))
+        else:
+            await message.answer("Ismingiz Yangiliandi", reply_markup=cmd_start(msg_chat_id))
     else:
         await message.answer("Fo'ydalanuvchi to'pilmdi.", reply_markup=cmd_start(msg_chat_id))
     
@@ -75,7 +78,10 @@ async def update_last_name(message: types.Message, state: FSMContext):
     if user:
         user.last_name = new_last_name
         session.commit()
-        await message.answer("Familiyangiz yangilandi!", reply_markup=cmd_start(msg_chat_id))
+        if msg_chat_id in BOT_OWNERS:
+            await message.answer("Familiyangiz Yangiliandi", reply_markup=admin_cmd_start(msg_chat_id))
+        else:
+            await message.answer("Familiyangiz Yangiliandi", reply_markup=cmd_start(msg_chat_id))
     else:
         await message.answer("Fo'ydalanuvchi to'pilmdi.", reply_markup=cmd_start(msg_chat_id))
     
@@ -93,7 +99,10 @@ async def update_phone(message: types.Message, state: FSMContext):
     if user:
         user.phone = new_phone_number
         session.commit()
-        await message.answer("Telefon raqmingiz yangilandi!", reply_markup=cmd_start(msg_chat_id))
+        if msg_chat_id in BOT_OWNERS:
+            await message.answer("Telefon raqmingiz Yangiliandi", reply_markup=admin_cmd_start(msg_chat_id))
+        else:
+            await message.answer("Telefon raqmingiz Yangiliandi", reply_markup=cmd_start(msg_chat_id))
     else:
         await message.answer("Fo'ydalanuvchi to'pilmdi.", reply_markup=cmd_start(msg_chat_id))
     
@@ -102,7 +111,7 @@ async def update_phone(message: types.Message, state: FSMContext):
 
 
 @dp.message_handler(state=UserDataForm.waiting_for_lavozim)
-async def update_phone(message: types.Message, state: FSMContext):
+async def update_lavozim(message: types.Message, state: FSMContext):
     new_lavozim = message.text
     username = message.from_user.username
     msg_chat_id = message.chat.id
@@ -112,7 +121,10 @@ async def update_phone(message: types.Message, state: FSMContext):
     if user:
         user.lavozim = new_lavozim
         session.commit()
-        await message.answer("Lavozimingiz yangilandi!", reply_markup=cmd_start(msg_chat_id))
+        if msg_chat_id in BOT_OWNERS:
+            await message.answer("Lavozimingiz Yangiliandi", reply_markup=admin_cmd_start(msg_chat_id))
+        else:
+            await message.answer("Lavozimingiz Yangiliandi", reply_markup=cmd_start(msg_chat_id))
     else:
         await message.answer("Fo'ydalanuvchi to'pilmdi.", reply_markup=cmd_start(msg_chat_id))
     

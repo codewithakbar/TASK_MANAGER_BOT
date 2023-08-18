@@ -54,7 +54,7 @@ async def user_profile(message: types.Message):
         created_at = "Topilmadi" if user.created_at is None else user.created_at
         created_at = created_at.strftime("%d.%m.%Y %H:%M:%S")
 
-        response = f"<b>Akkaunt</b>:\n<i>Sizning profilingizdagi barcha kerakli ma'lumotlar</i>\n\n<b>👁‍🗨ID:</b> <code>{chat_id}</code>\n<b>👁‍🗨Username:</b> @{username}\n👁‍🗨<b>Telefon:</b> <code>{phone}</code>\n👁‍🗨<b>Qoshilgan sana:</b> <code>{created_at}</code>\n\n<b>Ismi:</b> <code>{user.first_name}</code>\n<b>Familiya:</b> <code>{user.last_name}</code>\n<b>Foydalanuvchi xaqida:</b> <code>{bio}</code>\n<b>Lavozim:</b> <code>{lavozim}</code>\n\n👨‍💻<b>Bot yaratuvchisi:</b>\n<b>└texnik yordam uchun</b>: @satipoff"
+        response = f"<b>Akkaunt</b>:\n<i>Sizning profilingizdagi barcha kerakli ma'lumotlar</i>\n\n<b>👁‍🗨ID:</b> <code>{chat_id}</code>\n<b>👁‍🗨Username:</b> @{username}\n👁‍🗨<b>Telefon:</b> <code>{phone}</code>\n👁‍🗨<b>Qoshilgan sana:</b> <code>{created_at}</code>\n\n<b>Ismi:</b> <code>{user.first_name}</code>\n<b>Familiya:</b> <code>{user.last_name}</code>\n<b>Foydalanuvchi xaqida:</b> <code>{bio}</code>\n<b>Lavozim:</b> <code>{lavozim}</code>\n\n👨‍💻<b>Bot muallifi:</b>\n<b>└texnik yordam uchun</b>: @satipoff"
 
         await message.answer(response, reply_markup=profile_murkups())
     else:
@@ -76,7 +76,7 @@ async def cmd_ping_bot(message: types.Message):
 @dp.message_handler(text=f"{PERSONAL}")
 async def xodimlar(message: types.Message):
     session = Session()
-    users = session.query(User).all()
+    users = session.query(Personal).all()
     msg_chat_id = message.chat.id
 
     if not users:
