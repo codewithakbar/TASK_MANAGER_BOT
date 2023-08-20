@@ -29,7 +29,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 
 from bot import Session, engine
-from keyboards.default.admin import BACK_TO_MAIN, add_personal, back_to_main
+from keyboards.default.admin import BACK_TO_MAIN, _xodimlar, add_personal, back_to_main
 from keyboards.default.profil import profile_murkups
 from utility.db import Department, Personal, Task, User
 from keyboards.default import cmd_start, admin_cmd_start
@@ -79,7 +79,7 @@ async def xodimlar(message: types.Message):
     msg_chat_id = message.chat.id
 
     if not users:
-        await message.answer("Xodimlar Topilmadi", reply_markup=add_personal())
+        await message.answer("Xodimlar Topilmadi", reply_markup=back_to_main())
         return
     
     keyboard = types.InlineKeyboardMarkup()

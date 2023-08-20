@@ -37,7 +37,7 @@ class Personal(Base):
     bio = Column(String)
     lavozim = Column(String)
     phone = Column(String)
-
+    chat_id = Column(Integer)
 
     user = relationship("User", back_populates="personal")
 
@@ -55,6 +55,8 @@ class Department(Base):
 class Task(Base):
     __tablename__ = 'tasks'
     id = Column(Integer, primary_key=True)
+    user_id = Column(Integer)
+    chat_id = Column(Integer)
     text = Column(String)
     department_id = Column(Integer, ForeignKey('departments.id'))
     due_date = Column(DateTime)

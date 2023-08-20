@@ -20,7 +20,7 @@ from utility.db import Department, Personal, Task, User
 from keyboards.default import cmd_start, add_personal
 
 from config import BOT_OWNERS
-from keyboards.default.commands import ADMIN, BOLIM, BOLIM_YARATISH, VAZIFA_YUKLASH, bolim_main, vazifa_yuklash_btn
+from keyboards.default.commands import ADD_VAZIFA, ADMIN, BOLIM, BOLIM_YARATISH, VAZIFA_YUKLASH, bolim_main, vazifa_yuklash_btn
 from keyboards.default.admin import ADD_PERSONAL, USERS, DELETE_PERSONAL, USERS_DELETE, back_to_main
 
 delete_user_callback = CallbackData("delete_user", "user_id")
@@ -37,6 +37,13 @@ class DepartamentDataForm(StatesGroup):
     waiting_for_name = State()
 
 
+
+class TaskAssignmentStates(StatesGroup):
+    waiting_for_task_details = State()
+
+
+
+
 @dp.message_handler(is_owner=True, text=f"{ADMIN}")
 async def admin_panel(message: types.Message):
     await message.reply("<b>Admin Panel!</b>\n\n", reply_markup=add_personal())
@@ -45,9 +52,83 @@ async def admin_panel(message: types.Message):
 
 @dp.message_handler(is_owner=True, text=f"{VAZIFA_YUKLASH}")
 async def vazifa_yuklash(message: types.Message):
-    await message.reply("<b>Vazifa Yuklash!</b>\n\n", reply_markup=vazifa_yuklash_btn())
+    await message.reply("<b>Vazifalar bo'limi!</b>\n\n", reply_markup=vazifa_yuklash_btn())
 
 
+
+@dp.message_handler(is_owner=True, text=f"{ADD_VAZIFA}")
+async def vazifa_yuklash(message: types.Message):
+    session = Session()
+    users = session.query(Personal).all()
+
+    if not users:
+        await message.answer("Xodimlar topilmadi.")
+        return
+
+    keyboard = types.InlineKeyboardMarkup()
+
+    for user in users:
+        button_text = f"{user.first_name} {user.last_name}"
+        callback_data = f"for_task:{user.id}"
+        keyboard.add(types.InlineKeyboardButton(text=button_text, callback_data=callback_data))
+
+    await message.reply("<b>Vazifa yuklash uchun xodimlardan birini tanlang:</b>\n\n", reply_markup=keyboard)
+
+
+
+@dp.callback_query_handler(lambda c: c.data.startswith("for_task:"), state=None)
+async def assign_task_callback(callback_query: types.CallbackQuery, state: FSMContext):
+    user_id = int(callback_query.data.split(":")[1])
+    # Load the user from the database based on user_id
+    session = Session()
+    user = session.query(Personal).get(user_id)
+    if user:
+        await callback_query.message.answer(f"Siz {user.first_name} {user.last_name} ni tanladingiz.")
+        await callback_query.message.answer("Iltimos, vazifa ma'lumotlarini kiriting:")
+        
+        # Set the state to waiting_for_task_details
+        await TaskAssignmentStates.waiting_for_task_details.set()
+
+        # Store the user_id in the state for later use
+        async with state.proxy() as data:
+            data['user_id'] = user_id
+
+    else:
+        await callback_query.message.answer("Foydalanuvchi topilmadi.")
+    session.close()
+
+@dp.message_handler(state=TaskAssignmentStates.waiting_for_task_details)
+async def process_task_details(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        user_id = data['user_id']
+    session = Session()
+    user = session.query(Personal).get(user_id)
+    
+    task_details = message.text
+
+    # Create a Task instance and add it to the session
+    new_task = Task(text=task_details)  # Replace with appropriate department_id
+    session.add(new_task)
+    session.commit()
+    
+    # keyboard = types.InlineKeyboardMarkup()
+
+    
+    callback_data = f"for_task:{user.id}"
+    keyboard = types.InlineKeyboardMarkup(
+        inline_keyboard=[[
+            types.InlineKeyboardButton(text="✅ Tasdiqlash", callback_data="confirm_a"),
+            types.InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_a"),
+        ]]
+    )
+
+    await bot.send_message(user.chat_id, f"Yangi vazifa taqdim etildi:\n\n{task_details}", reply_markup=keyboard)
+    
+    await message.answer("Vazifa muvaffaqiyatli taqdim etildi!")
+    
+    # Finish the conversation by resetting the state
+    await state.finish()
+    
 
 """             XODIMLARNI OCHIRISH                 """
 
@@ -144,41 +225,53 @@ async def get_all_users(message: types.Message):
 """             Xodimlar qoshish Funksiyasi            """
 
 @dp.message_handler(is_owner=True, text=f"{ADD_PERSONAL}")
-async def add_personal_step1(message: types.Message):
-    await message.answer("Iltimos, xodim nomini kiriting (yoki to'xtatish uchun /cancel ni bo'sing):")
-    await PersonalDataForm.waiting_for_username.set()
+async def add_personal_in_admin(message: types.Message):
+    session = Session()
+    users = session.query(User).all()
+
+    if not users:
+        await message.answer("There are no users registered.")
+        return
+
+    keyboard = types.InlineKeyboardMarkup()
+
+    for user in users:
+        button_text = f"{user.first_name} {user.last_name}"
+        callback_data = f"add_personal:{user.id}"
+        keyboard.add(types.InlineKeyboardButton(text=button_text, callback_data=callback_data))
 
 
-@dp.message_handler(state=PersonalDataForm.waiting_for_username)
-async def process_username(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data['username'] = message.text
-    await message.answer("Ismini kiriting (yoki to'xtatish uchun /cancel ni bo'sing):")
-    await PersonalDataForm.next()
+    await message.answer("Xodim qoshish uchun ism ustiga bo'sing:", reply_markup=keyboard)
 
 
-@dp.message_handler(lambda message: message.text.lower() == '/cancel', state=PersonalDataForm)
-async def cancel_add_personal(message: types.Message, state: FSMContext):
-    await message.answer("Xodim ma'lumotlarni qo'shish bekor qilindi.")
-    await state.finish()
+
+@dp.callback_query_handler(lambda c: c.data.startswith("add_personal:"))
+async def add_personal_callback(callback_query: types.CallbackQuery):
+    user_id = int(callback_query.data.split(":")[1])
+
+    session = Session()
+    user = session.query(User).get(user_id)
+    personal = session.query(Personal).get(user_id)
+
+    if user:
+        if personal:
+            await callback_query.answer("Qoshilgassn!!!")
+        else:
+
+            new_personal = Personal(
+                user_id=user.id,
+                first_name=user.first_name,
+                last_name=user.last_name,
+                chat_id=user.chat_id,
+            )
+            session.add(new_personal)
+            session.commit()
+
+            await callback_query.answer("User added to personal_user model")
+    else:
+        await callback_query.answer("Qoshilgan!!!")
 
 
-@dp.message_handler(state=PersonalDataForm.waiting_for_first_name)
-async def process_first_name(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data['first_name'] = message.text
-    await message.answer("Familiyasini kiriting (yoki to'xtatish uchun /cancel ni bo'sing.):")
-    await PersonalDataForm.next()
-
-
-@dp.message_handler(state=PersonalDataForm.waiting_for_last_name)
-async def process_last_name(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data['last_name'] = message.text
-
-
-    await message.answer("Xodim ma'lumotlari muvaffaqiyatli qo'shildi")
-    await state.finish()
 
 
 

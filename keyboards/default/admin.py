@@ -24,5 +24,11 @@ def back_to_main():
     return murkup
 
 
+def _xodimlar():
+    
+    murkup = ReplyKeyboardMarkup(resize_keyboard=True, selective=True)
+    murkup.add(ADD_PERSONAL, DELETE_PERSONAL)
+    murkup.add(BACK_TO_MAIN)
 
+    return murkup
     
