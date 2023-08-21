@@ -9,6 +9,7 @@ from aiogram.dispatcher.filters import Command
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 
 from aiogram.dispatcher.filters.state import State, StatesGroup
+from sqlalchemy import desc, func
 
 
 from dispatcher import dp, bot
@@ -20,7 +21,7 @@ from utility.db import Department, Personal, Task, User
 from keyboards.default import cmd_start, add_personal
 
 from config import BOT_OWNERS
-from keyboards.default.commands import ADD_VAZIFA, ADMIN, BOLIM, BOLIM_YARATISH, VAZIFA_YUKLASH, bolim_main, vazifa_yuklash_btn
+from keyboards.default.commands import ADD_VAZIFA, ADMIN, BARCHA_VAZIFALAR, BOLIM, BOLIM_YARATISH, VAZIFA_YUKLASH, bolim_main, vazifa_yuklash_btn
 from keyboards.default.admin import ADD_PERSONAL, USERS, DELETE_PERSONAL, USERS_DELETE, back_to_main
 
 delete_user_callback = CallbackData("delete_user", "user_id")
@@ -56,6 +57,7 @@ async def vazifa_yuklash(message: types.Message):
 
 
 
+# Vazifa yuklash 
 @dp.message_handler(is_owner=True, text=f"{ADD_VAZIFA}")
 async def vazifa_yuklash(message: types.Message):
     session = Session()
@@ -97,6 +99,8 @@ async def assign_task_callback(callback_query: types.CallbackQuery, state: FSMCo
         await callback_query.message.answer("Foydalanuvchi topilmadi.")
     session.close()
 
+
+
 @dp.message_handler(state=TaskAssignmentStates.waiting_for_task_details)
 async def process_task_details(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
@@ -107,7 +111,7 @@ async def process_task_details(message: types.Message, state: FSMContext):
     task_details = message.text
 
     # Create a Task instance and add it to the session
-    new_task = Task(text=task_details)  # Replace with appropriate department_id
+    new_task = Task(text=task_details, chat_id=user.chat_id)  # Replace with appropriate department_id
     session.add(new_task)
     session.commit()
     
@@ -117,7 +121,7 @@ async def process_task_details(message: types.Message, state: FSMContext):
     callback_data = f"for_task:{user.id}"
     keyboard = types.InlineKeyboardMarkup(
         inline_keyboard=[[
-            types.InlineKeyboardButton(text="✅ Tasdiqlash", callback_data="confirm_a"),
+            types.InlineKeyboardButton(text="✅ Tugatish", callback_data="confirm_a"),
             types.InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_a"),
         ]]
     )
@@ -129,6 +133,61 @@ async def process_task_details(message: types.Message, state: FSMContext):
     # Finish the conversation by resetting the state
     await state.finish()
     
+
+
+# Barcha Vazifalar
+
+def get_tasks(page, limit=1):
+    session = Session()
+    offset = (page - 1) * limit
+    tasks = session.query(Task).order_by(desc(Task.id)).offset(offset).limit(limit).all()
+    return tasks
+
+
+@dp.message_handler(is_owner=True, text=f"{BARCHA_VAZIFALAR}")
+async def barcha_vazifalar(message: types.Message):
+    current_page = 1
+    await send_tasks(message.chat.id, current_page)
+
+
+async def send_tasks(chat_id, page):
+
+    session = Session()
+    tasks = get_tasks(page)
+
+
+    task_count = session.query(func.count(Task.id)).scalar()
+    if tasks:
+        task_texts = "\n\n".join([task.text for task in tasks])
+        inline_buttons = types.InlineKeyboardMarkup()
+
+        for task in tasks:
+            chat_id_task = task.chat_id
+        
+            user = session.query(Personal).filter_by(chat_id=chat_id_task).first()
+        
+            first_name = "" if user is None or user.first_name is None else user.first_name
+            last_name = "" if user is None or user.last_name is None else user.last_name
+
+        if page > 1:
+            inline_buttons.add(types.InlineKeyboardButton("Oldingi", callback_data=f"prev_page:{page-1}"))
+        if len(tasks) == 1:
+            inline_buttons.add(types.InlineKeyboardButton("Keyingisi", callback_data=f"next_page:{page+1}"))
+
+        await bot.send_message(chat_id, f"<i>Jami Vazifalar: <b>{task_count}</b> dona</i>\n<b>{first_name} {last_name}</b>ning vazifasi:\n\n{task_texts}\n\n", reply_markup=inline_buttons)
+
+
+
+
+@dp.callback_query_handler(lambda c: c.data.startswith("prev_page:") or c.data.startswith("next_page:"))
+async def paginate_tasks_callback(query: types.CallbackQuery):
+    page = int(query.data.split(":")[1])
+    tasks = get_tasks(page)
+
+    await query.message.delete()  # Delete the previous message
+    await send_tasks(query.message.chat.id, page)
+
+
 
 """             XODIMLARNI OCHIRISH                 """
 
@@ -203,7 +262,7 @@ async def delete_user_callback_handler(query: types.CallbackQuery, callback_data
 @dp.message_handler(is_owner=True, text=f"{USERS}")
 async def get_all_users(message: types.Message):
     session = Session()
-    users = session.query(User).all()
+    users = session.query(User).order_by(desc(User.id)).all()
 
     if not users:
         await message.answer("There are no users registered.")
@@ -215,7 +274,7 @@ async def get_all_users(message: types.Message):
         button_text = f"{user.first_name} {user.last_name}"
         keyboard.add(types.InlineKeyboardButton(text=button_text, callback_data=f"view_user:{user.id}"))
 
-    await message.answer("Select a user to view:", reply_markup=keyboard)
+    await message.answer("Fo'ydalanuvchilar:", reply_markup=keyboard)
 
 
 
@@ -245,6 +304,8 @@ async def add_personal_in_admin(message: types.Message):
 
 
 
+
+
 @dp.callback_query_handler(lambda c: c.data.startswith("add_personal:"))
 async def add_personal_callback(callback_query: types.CallbackQuery):
     user_id = int(callback_query.data.split(":")[1])
@@ -253,23 +314,27 @@ async def add_personal_callback(callback_query: types.CallbackQuery):
     user = session.query(User).get(user_id)
     personal = session.query(Personal).get(user_id)
 
-    if user:
-        if personal:
-            await callback_query.answer("Qoshilgassn!!!")
+
+    if user_id in BOT_OWNERS:
+        if user:
+            if personal:
+                await callback_query.answer("Qoshilgassn!!!")
+            else:
+
+                new_personal = Personal(
+                    user_id=user.id,
+                    first_name=user.first_name,
+                    last_name=user.last_name,
+                    chat_id=user.chat_id,
+                )
+                session.add(new_personal)
+                session.commit()
+
+                await callback_query.answer("User added to personal_user model")
         else:
-
-            new_personal = Personal(
-                user_id=user.id,
-                first_name=user.first_name,
-                last_name=user.last_name,
-                chat_id=user.chat_id,
-            )
-            session.add(new_personal)
-            session.commit()
-
-            await callback_query.answer("User added to personal_user model")
+            await callback_query.answer("Qoshilgan!!!")
     else:
-        await callback_query.answer("Qoshilgan!!!")
+        await callback_query.answer("Ruxsat yo'q!!!")
 
 
 

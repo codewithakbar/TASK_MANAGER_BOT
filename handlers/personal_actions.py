@@ -19,6 +19,7 @@ from aiogram.dispatcher.filters import Command
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 
 from aiogram.dispatcher.filters.state import State, StatesGroup
+from sqlalchemy import desc, func
 
 
 from dispatcher import dp, bot
@@ -33,7 +34,7 @@ from keyboards.default.admin import BACK_TO_MAIN, _xodimlar, add_personal, back_
 from keyboards.default.profil import profile_murkups
 from utility.db import Department, Personal, Task, User
 from keyboards.default import cmd_start, admin_cmd_start
-from keyboards.default.commands import PERSONAL, PROFIL
+from keyboards.default.commands import PERSONAL, PROFIL, VAZIFALARIM
 
 from config import BOT_OWNERS
 
@@ -60,6 +61,50 @@ async def user_profile(message: types.Message):
         await message.answer("Nimadir xato ketti!")
 
 
+
+
+def get_person_tasks(chat_id, page, limit=1):
+    session = Session()
+    offset = (page - 1) * limit
+    
+    tasks = session.query(Task).filter(Task.chat_id == chat_id).order_by(desc(Task.id)).offset(offset).limit(limit).all()
+    return tasks
+
+
+@dp.message_handler(is_owner=True, text=f"{VAZIFALARIM}")
+async def xodim_barcha_vazifalar(message: types.Message):
+    current_page = 1
+    await send_tasks(message.chat.id, current_page)
+
+
+async def send_tasks(chat_id, page, message: types.Message):
+
+    session = Session()
+    tasks = get_person_tasks(message.chat.id, page)
+
+
+    task_count = session.query(func.count(Task.id)).scalar()
+    if tasks:
+        task_texts = "\n\n".join([task.text for task in tasks])
+        inline_buttons = types.InlineKeyboardMarkup()
+
+        for task in tasks:
+            chat_id_task = task.chat_id
+        
+            user = session.query(Personal).filter_by(chat_id=chat_id_task).first()
+        
+            first_name = "" if user is None or user.first_name is None else user.first_name
+            last_name = "" if user is None or user.last_name is None else user.last_name
+
+        if page > 1:
+            inline_buttons.add(types.InlineKeyboardButton("Oldingi", callback_data=f"prev_page:{page-1}"))
+        if len(tasks) == 1:
+            inline_buttons.add(types.InlineKeyboardButton("Keyingisi", callback_data=f"next_page:{page+1}"))
+
+        await bot.send_message(chat_id, f"<i>Jami Vazifalar: <b>{task_count}</b> dona</i>\n<b>{first_name} {last_name}</b>ning vazifasi:\n\n{task_texts}\n\n", reply_markup=inline_buttons)
+
+
+    
 
 
 
@@ -154,6 +199,7 @@ async def start(message: types.Message):
     role = "Raxbar" if member.user.id in BOT_OWNERS else "Foydalanuvchi"
     if msg_chat_id in BOT_OWNERS:
         await message.answer(f"<b>Task Manager Bot:</b> \n<b>Foydalanuvchi:</b> <i>{save_user.first_name} {save_user.last_name}</i>\n<b>Roli</b>: <i>{role}</i>", reply_markup=admin_cmd_start(msg_chat_id))
+        await bot.send_message(msg_chat_id, f"Yangi fo'ydalanuvchi {user.first_name} {user.last_name}")
     else:
         await message.answer(f"<b>Task Manager Bot:</b> \n<b>Foydalanuvchi:</b> <i>{save_user.first_name} {save_user.last_name}</i>\n<b>Roli</b>: <i>{role}</i>", reply_markup=cmd_start(msg_chat_id))
 
