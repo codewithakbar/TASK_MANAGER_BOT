@@ -63,46 +63,53 @@ async def user_profile(message: types.Message):
 
 
 
-def get_person_tasks(chat_id, page, limit=1):
+def get_person_tasks(page, limit=1):
     session = Session()
     offset = (page - 1) * limit
     
-    tasks = session.query(Task).filter(Task.chat_id == chat_id).order_by(desc(Task.id)).offset(offset).limit(limit).all()
+    tasks = session.query(Task).order_by(desc(Task.id)).offset(offset).limit(limit).all()
+
+
+    session.close()
     return tasks
 
 
-@dp.message_handler(is_owner=True, text=f"{VAZIFALARIM}")
+
+
+@dp.message_handler(text=f"{VAZIFALARIM}")
 async def xodim_barcha_vazifalar(message: types.Message):
     current_page = 1
     await send_tasks(message.chat.id, current_page)
 
 
-async def send_tasks(chat_id, page, message: types.Message):
-
+async def send_tasks(chat_eid, page):
     session = Session()
-    tasks = get_person_tasks(message.chat.id, page)
-
-
+    
+    # Pass the chat_id to get_person_tasks
+    tasks = get_person_tasks(page)
+    
     task_count = session.query(func.count(Task.id)).scalar()
+    task_id = session.query(Task).filter_by(chat_id=chat_eid).first()
+    session.close()  
+    
     if tasks:
         task_texts = "\n\n".join([task.text for task in tasks])
         inline_buttons = types.InlineKeyboardMarkup()
 
         for task in tasks:
-            chat_id_task = task.chat_id
+            # Use the task's chat_id to get the associated user
+            user = session.query(Personal).filter_by(chat_id=task.chat_id).first()
         
-            user = session.query(Personal).filter_by(chat_id=chat_id_task).first()
-        
-            first_name = "" if user is None or user.first_name is None else user.first_name
-            last_name = "" if user is None or user.last_name is None else user.last_name
+            first_name = user.first_name if user and user.first_name else ""
+            last_name = user.last_name if user and user.last_name else ""
 
         if page > 1:
             inline_buttons.add(types.InlineKeyboardButton("Oldingi", callback_data=f"prev_page:{page-1}"))
         if len(tasks) == 1:
             inline_buttons.add(types.InlineKeyboardButton("Keyingisi", callback_data=f"next_page:{page+1}"))
 
-        await bot.send_message(chat_id, f"<i>Jami Vazifalar: <b>{task_count}</b> dona</i>\n<b>{first_name} {last_name}</b>ning vazifasi:\n\n{task_texts}\n\n", reply_markup=inline_buttons)
-
+        await bot.send_message(chat_eid, f"<i>Jami Vazifalar: <b>{task_count}</b> dona</i>\n<b>{first_name} {last_name}</b>ning vazifasi:\n\n{task_texts}\n\n", reply_markup=inline_buttons)
+    # await bot.send_message(chat_eid, f"{task_id.text}")
 
     
 
